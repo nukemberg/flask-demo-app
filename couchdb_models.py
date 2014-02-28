@@ -45,13 +45,13 @@ function (doc) {
 update_score_func = """
 function (doc, request) {
 	if (!doc) {
-		return [null, {"body": {"status": "not found"}, "code": 404}];
+		return [null, {"body": toJSON({"status": "not found"}), "code": 404}];
 	}
 	if (doc['doc_type'] == 'insult') {
 		doc['score'] += 1;
-		return [doc, {"body": {"status": "updated"}}];
+		return [doc, toJSON({"status": "updated"})];
 	}
-	return [null, {"body": {"status": "incorrect document type"}, "code": 412}];
+	return [null, {"body": toJSON({"status": "incorrect document type"}), "code": 412}];
 }
 """
 

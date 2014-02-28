@@ -155,7 +155,10 @@ class CategoriesController(restful.Resource):
 class InsultLikeController(restful.Resource):
 	"increment the score of a insult with a given ID"
 	def put(self, insult_id):
-		return g.couch.update_doc("insults/increment_score", insult_id)
+		riemann_client.send({"service": "like", "metric": 1, "tags": ["counter"]})
+		_, resp_body = g.couch.update_doc("insults/increment_score", insult_id)
+		# resp_body is a StringIO object
+		return json.load(resp_body)
 
 api.add_resource(InsultController, "/insult/<string:insult_id>")
 api.add_resource(InsultsController, "/insult", "/insult/")
