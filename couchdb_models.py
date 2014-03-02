@@ -34,6 +34,15 @@ function (doc) {
 }
 """, wrapper=Row)
 
+	# Bad, bad boy...
+	by_random_id = ViewField('insults', """
+function (doc) {
+	if (doc.doc_type == 'insult') {
+		emit(Math.random(), null);
+	}
+}
+""", wrapper=Row)
+
 category_scores = ViewDefinition('insults', 'category_by_score', """
 function (doc) {
 	if (doc.doc_type == 'insult') {

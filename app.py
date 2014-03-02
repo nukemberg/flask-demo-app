@@ -6,12 +6,11 @@ from flask.ext.restful import fields, marshal_with, marshal
 from flask_restful_swagger import swagger
 import riemann
 import os.path
-from uuid import uuid4
 import couchdb
 from flaskext.couchdb import CouchDBManager, paginate
 from couchdb_models import Insult, category_scores, update_design_doc
 from functools import wraps
-from functools import partial
+import random
 
 __version__ = "0.0.1"
 
@@ -68,7 +67,6 @@ def retry(catch, attempts, on_failure):
 
 
 class InsultController(restful.Resource):
-
 	@swagger.operation(notes="Retrieve a specific insult by ID", responseClass=Insult.__name__)
 	@marshal_with(Insult.resource_fields)
 	def get(self, insult_id):
@@ -128,11 +126,7 @@ class InsultsController(restful.Resource):
 	@timed("new insult")
 	@marshal_with(IdOnlyModel.resource_fields)
 	def post(self):
-		doc_id = str(uuid4())
-		# possible collision, couchdb will kick us in the nuts for not having suitable rev
-		# unfortunately uuid4 is too good at avoiding collisions. we may have to generate them on purpose...
 		doc = Insult(**request.get_json())
-		doc.id = doc_id
 		doc.store()
 		return doc
 
@@ -160,6 +154,23 @@ class InsultLikeController(restful.Resource):
 		# resp_body is a StringIO object
 		return json.load(resp_body)
 
+class InsultRandomController(restful.Resource):
+	@swagger.operation(
+		notes="Get a random insult",
+		responseClass=Insult.__name__,
+	)
+	@timed("random insult")
+	@marshal_with(Insult.resource_fields)
+	def get(self):
+		# This random selection method is flawed. It's biased and doesn't give the same chance to all documents
+		# On top of that, the CoudchDB view generation is bad since it uses random in the map
+		rand_id = random.random()
+		docs = Insult.by_random_id(startkey=rand_id, limit=1, include_docs=True)
+		if len(docs) == 0:
+			docs = Insult.by_ordered_id(startkey=rand_id, limit=1, descending=True, include_docs=True)
+		return docs.rows[0].doc
+
+api.add_resource(InsultRandomController, "/insult/_random")
 api.add_resource(InsultController, "/insult/<string:insult_id>")
 api.add_resource(InsultsController, "/insult", "/insult/")
 api.add_resource(InsultCategoryController, "/category/<string:category>")
