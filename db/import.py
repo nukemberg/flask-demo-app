@@ -14,11 +14,15 @@ parser.add_argument("insults_file", help="insults file (json formatted lines)")
 opts = parser.parse_args()
 url = urlparse.urljoin(opts.url.rstrip("/") + "/", "_bulk_docs")
 
-print url
+resp = requests.get(opts.url, headers={"Content-Type": "application/json"})
+if not resp.ok:
+    print "Creating database"
+    requests.put(opts.url, headers={"Content-Type": "application/json"})
+
 with open(opts.insults_file) as f:
     for chunk in chunks(f.readlines(), 100):
         data = {"docs": [json.loads(r) for r in chunk]}
         resp = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(data))
         if not resp.ok:
-            print >> sys.stderr, "Update failed, code: %d, %s", resp.status_code, resp.text
+            print >> sys.stderr, "Update failed, code: %d, %s" % (resp.status_code, resp.text)
             sys.exit(1)
