@@ -3,3 +3,5 @@ flask
 flask-restful
 flask-restful-swagger
 Flask-couchdb
+blinker
+requests

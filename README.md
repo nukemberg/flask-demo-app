@@ -29,6 +29,8 @@ To run with a production grade WSGI server (e.g. gunicorn):
 
     gunicorn -w 2 -e APP_CONFIG_FILE=config.py -b :8080 app:app
 
+Now go to the swagger UI URL: [http://localhost:5000/api/spec.html](http://localhost:5000/api/spec.html)
+
 ## Populating the database
 
 In the `db` folder there is a list file containing insult documents. To populate the database use the import tools:
