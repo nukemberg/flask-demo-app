@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
-from flask import Flask, render_template, abort, g, request, json, redirect, appcontext_pushed
+from flask import Flask, abort, g, request,\
+    json, redirect, appcontext_pushed
 from flask.ext import restful
-from flask.ext.restful import fields, marshal_with, marshal
+from flask.ext.restful import marshal_with, marshal
 from flask_restful_swagger import swagger
 import riemann
 import couchdb
 from flaskext.couchdb import CouchDBManager, paginate
-from couchdb_models import Insult, category_scores, update_design_doc
+from couchdb_models import Insult, LogEntry, IdOnlyModel, \
+    category_scores, update_design_doc, log_entries
 from functools import wraps
 import random
+from datetime import datetime
 
 __version__ = "0.0.1"
 
@@ -20,15 +23,19 @@ app.config.update(dict(
     COUCHDB_SERVER="http://localhost:5984",
     RIEMANN_ADDRESS="localhost:5555",
     BASE_URL="http://localhost:5000"
-    ))
+))
 app.config.from_envvar('APP_CONFIG_FILE', silent=True)
 
-api = swagger.docs(restful.Api(app), apiVersion="1.0.0", basePath=app.config['BASE_URL'])
+api = swagger.docs(restful.Api(app),
+                   apiVersion="1.0.0",
+                   basePath=app.config['BASE_URL'])
 
 # couchdb setup
 couchdb_manager = CouchDBManager(auto_sync=False)
 couchdb_manager.setup(app)
 couchdb_manager.add_document(Insult)
+couchdb_manager.add_document(LogEntry)
+couchdb_manager.add_viewdef(log_entries)
 couchdb_manager.add_viewdef(category_scores)
 # install a hook so we have a chance to put update function into the design document
 couchdb_manager.update_design_doc = update_design_doc
@@ -36,10 +43,11 @@ couchdb_manager.sync(app)
 
 riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
 
-app.wsgi_app = riemann.WSGIMiddleware(app.wsgi_app, riemann_client)
+app.wsgi_app = riemann.wsgi_middelware(app.wsgi_app, riemann_client)
 
 # get a timer decorator with riemann client pre-injected
 timed = riemann.TimerDecorator(riemann_client)
+
 
 @appcontext_pushed.connect_via(app)
 def _connect_riemann(_app, **kwargs):
@@ -50,13 +58,15 @@ def _connect_riemann(_app, **kwargs):
         _app.warning("Failed to connect to riemann", exc_info=True)
 
 
-# field spec for id only answer
-@swagger.model
-class IdOnlyModel(object):
-    resource_fields = {
-        "id": fields.String
-    }
-
+@app.after_request
+def log_request(response):
+    log_entry = LogEntry(method=request.method,
+                         path=request.path,
+                         ip=request.remote_addr,
+                         time=datetime.now(),
+                         status=response.status)
+    log_entry.store()
+    return response
 
 def retry(catch, attempts, on_failure):
     "A decorator that will retry an operation `attempts` times and will call `on_failure` if retries exhausted"
@@ -80,7 +90,7 @@ class InsultController(restful.Resource):
     def get(self, insult_id):
         doc = Insult.load(insult_id)
         if doc is None: abort(404)
-        return doc
+        return (doc, 200, {"etag": doc.rev})
 
     @swagger.operation(
         notes="Update a specific insult by ID",
@@ -109,7 +119,7 @@ class InsultController(restful.Resource):
     def delete(self, insult_id):
         try:
             del g.couch[insult_id]
-            return True
+            return (True, 201, {})
         except couchdb.http.ResourceNotFound:
             restful.abort(404, status="Not found")
 
@@ -123,7 +133,8 @@ class InsultCategoryController(restful.Resource):
         except TypeError:
             app.logger.error("Error while paginating category items", exc_info=True)
             abort(400)
-        return {"next": json.loads(pagination.next), "insults": marshal([row.doc for row in pagination.items], Insult.resource_fields)}
+        return {"next": json.loads(pagination.next),
+                "insults": marshal([row.doc for row in pagination.items], Insult.resource_fields)}
 
 
 class InsultsController(restful.Resource):
@@ -138,7 +149,7 @@ class InsultsController(restful.Resource):
     def post(self):
         doc = Insult(**request.get_json())
         doc.store()
-        return doc
+        return (doc, 201, doc.id)
 
     @timed("list insults")
     def get(self):
@@ -147,7 +158,8 @@ class InsultsController(restful.Resource):
         except TypeError:
             app.logger.error("Error while paginating insults", exc_info=True)
             abort(400)
-        return {"next": json.loads(page.next), "insults": marshal([row.doc for row in page.items], Insult.resource_fields)}
+        return {"next": json.loads(page.next),
+                "insults": marshal([row.doc for row in page.items], Insult.resource_fields)}
 
 
 class CategoriesController(restful.Resource):

@@ -36,23 +36,19 @@ class TimerDecorator(object):
                 res = func(*args, **kwargs)
                 try:
                     self._riemann_client.send({"service": name, "metric": time.time() - start, "tags":["timer"]})
-                except Exception as e:
+                except Exception:
                     logging.error("error while sending to riemann", exc_info=True)
                 return res
             return wrapper
         return decorator
 
 
-class WSGIMiddleware(object):
-    def __init__(self, next_middleware, riemann_client, host=socket.gethostname()):
-        self._riemann_client = riemann_client
-        self._host = host
-        self._next_middleware = next_middleware
-
-    def __call__(self, environ, start_response):
+def wsgi_middelware(next_middleware, riemann_client, host=socket.gethostname()):
+    def call(environ, start_response):
         try:
-            iterable = self._next_middleware(environ, start_response)
+            iterable = next_middleware(environ, start_response)
             for data in iterable: yield data
         except Exception as e:
-            self._riemann_client.send({"service": "exception", "description": str(e), "metric": 1, "tags": ["counter"]})
+            riemann_client.send({"service": "exception", "description": str(e), "metric": 1, "tags": ["counter"]})
             raise
+    return call

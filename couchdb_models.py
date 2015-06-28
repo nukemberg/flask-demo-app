@@ -3,6 +3,14 @@ from flask.ext.restful import fields
 from flask_restful_swagger import swagger
 
 
+# field spec for id only answer
+@swagger.model
+class IdOnlyModel(object):
+    resource_fields = {
+        "id": fields.String
+    }
+
+
 @swagger.model
 class Insult(Document):
     doc_type = 'insult'
@@ -64,6 +72,25 @@ function (doc, request) {
     return [null, {"body": toJSON({"status": "incorrect document type"}), "code": 412}];
 }
 """
+
+
+@swagger.model
+class LogEntry(Document):
+    doc_type = 'logEntry'
+    time = DateTimeField()
+    path = TextField()
+    method = TextField()
+    document_id = TextField()
+    ip = TextField()
+    status = TextField()
+
+log_entries = ViewDefinition('insults', 'log_entries', """
+function(doc) {
+    if (doc.doc_type == 'logEntry') {
+        emit(doc.time, doc);
+    }
+}
+""")
 
 
 def update_design_doc(ddoc):
