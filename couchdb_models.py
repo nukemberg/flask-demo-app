@@ -73,6 +73,11 @@ function (doc, request) {
 }
 """
 
+@swagger.model
+class Insults(object):
+    resource_fields = {
+        "insults": fields.List(fields.Nested(Insult))
+    }
 
 @swagger.model
 class LogEntry(Document):

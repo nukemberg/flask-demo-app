@@ -9,10 +9,11 @@ import riemann
 import couchdb
 from flaskext.couchdb import CouchDBManager, paginate
 from couchdb_models import Insult, LogEntry, IdOnlyModel, \
-    category_scores, update_design_doc, log_entries
+    category_scores, update_design_doc, log_entries, Insults
 from functools import wraps
 import random
 from datetime import datetime
+import hashlib
 
 __version__ = "0.0.1"
 
@@ -90,7 +91,7 @@ class InsultController(restful.Resource):
     def get(self, insult_id):
         doc = Insult.load(insult_id)
         if doc is None: abort(404)
-        return (doc, 200, {"etag": doc.rev})
+        return (doc, 200, {"etag": doc.rev, "x-sha": hashlib.sha256(json.dumps(doc.as_dict())).hexdigest()})
 
     @swagger.operation(
         notes="Update a specific insult by ID",
@@ -152,6 +153,10 @@ class InsultsController(restful.Resource):
         return (doc, 201, doc.id)
 
     @timed("list insults")
+    @swagger.operation(
+        notes="List insults",
+        responseClass=Insults.__name__
+        )
     def get(self):
         try:
             page = paginate(Insult.score_view(include_docs=True), 50, request.args.get('start', None))
