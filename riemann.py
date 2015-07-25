@@ -1,8 +1,5 @@
-from functools import wraps
-import time
 import socket
 from bernhard import Client
-import logging
 
 
 class TaggedClient(Client):
@@ -18,36 +15,21 @@ class TaggedClient(Client):
         event['service'] = self._service_prefix + " " + event['service']
         return super(TaggedClient, self).send(event)
 
+    def riemann_timer_reporter(self, service, metric):
+        self.send(dict(service=service, metric=metric, tags=['timer']))
+
 
 def get_client(riemann_addr, **kwargs):
     riemann_host, riemann_port = riemann_addr.split(":")
     return TaggedClient(host=riemann_host, port=int(riemann_port), **kwargs)
 
 
-class TimerDecorator(object):
-    def __init__(self, riemann_client):
-        self._riemann_client = riemann_client
-
-    def __call__(self, name):
-        def decorator(func):
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                start = time.time()
-                res = func(*args, **kwargs)
-                try:
-                    self._riemann_client.send({"service": name, "metric": time.time() - start, "tags":["timer"]})
-                except Exception:
-                    logging.error("error while sending to riemann", exc_info=True)
-                return res
-            return wrapper
-        return decorator
-
-
 def wsgi_middelware(next_middleware, riemann_client, host=socket.gethostname()):
     def call(environ, start_response):
         try:
             iterable = next_middleware(environ, start_response)
-            for data in iterable: yield data
+            for data in iterable:
+                yield data
         except Exception as e:
             riemann_client.send({"service": "exception", "description": str(e), "metric": 1, "tags": ["counter"]})
             raise

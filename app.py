@@ -14,6 +14,8 @@ from functools import wraps
 import random
 from datetime import datetime
 import hashlib
+from functools import partial
+import metrics
 
 __version__ = "0.0.1"
 
@@ -47,7 +49,7 @@ riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__versi
 app.wsgi_app = riemann.wsgi_middelware(app.wsgi_app, riemann_client)
 
 # get a timer decorator with riemann client pre-injected
-timed = riemann.TimerDecorator(riemann_client)
+timed = partial(metrics.TimerDecorator, [riemann_client])
 
 
 @appcontext_pushed.connect_via(app)
@@ -169,6 +171,9 @@ class InsultsController(restful.Resource):
 
 class CategoriesController(restful.Resource):
     "Lists all the categories by their like score."
+    @swagger.operation(
+        notes="List all the categories by their \"like\" score"
+    )
     def get(self):
         d = {row.key: row.value for row in category_scores(group=True)}
         return sorted(d, key=d.get) # return sorted list by score
@@ -176,6 +181,9 @@ class CategoriesController(restful.Resource):
 
 class InsultLikeController(restful.Resource):
     "increment the score of a insult with a given ID"
+    @swagger.operation(
+        notes="Submit a like for an insult"
+    )
     def put(self, insult_id):
         riemann_client.send({"service": "like", "metric": 1, "tags": ["counter"]})
         _, resp_body = g.couch.update_doc("insults/increment_score", insult_id)
