@@ -1,6 +1,7 @@
 from functools import wraps
 import time
 import logging
+import statsd
 
 
 def TimerDecorator(metric_reporters, name):
@@ -18,3 +19,9 @@ def TimerDecorator(metric_reporters, name):
             return res
         return wrapper
     return decorator
+
+
+def statsd_client(addr):
+    host, s_port = addr.split(":")
+    port = int(s_port)
+    return statsd.StatsClient(host, port, prefix='insult')

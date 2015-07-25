@@ -25,7 +25,8 @@ app.config.update(dict(
     COUCHDB_DATABASE="insults",
     COUCHDB_SERVER="http://localhost:5984",
     RIEMANN_ADDRESS="localhost:5555",
-    BASE_URL="http://localhost:5000"
+    BASE_URL="http://localhost:5000",
+    STATSD_ADDRESS="localhost:8125"
 ))
 app.config.from_envvar('APP_CONFIG_FILE', silent=True)
 
@@ -45,11 +46,13 @@ couchdb_manager.update_design_doc = update_design_doc
 couchdb_manager.sync(app)
 
 riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
+statsd_client = metrics.statsd_client(app.config['STATSD_ADDRESS'])
 
 app.wsgi_app = riemann.wsgi_middelware(app.wsgi_app, riemann_client)
 
+
 # get a timer decorator with riemann client pre-injected
-timed = partial(metrics.TimerDecorator, [riemann_client])
+timed = partial(metrics.TimerDecorator, [riemann_client, statsd_client.timing])
 
 
 @appcontext_pushed.connect_via(app)
