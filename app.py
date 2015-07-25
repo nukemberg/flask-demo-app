@@ -3,7 +3,7 @@
 from flask import Flask, abort, g, request,\
     json, redirect, appcontext_pushed
 from flask.ext import restful
-from flask.ext.restful import marshal_with, marshal
+from flask.ext.restful import marshal_with, marshal, fields
 from flask_restful_swagger import swagger
 import riemann
 import couchdb
@@ -129,6 +129,12 @@ class InsultController(restful.Resource):
 
 class InsultCategoryController(restful.Resource):
     "Returns all the insults in the category with the given ID"
+    @swagger.operation(
+        notes="List all the insult in the category",
+        parameters=[
+            {"name": "category", "paramType": "path", "required": True, "dataType": "string", "description": "Insults category ID"}
+        ]
+    )
     @timed("list category items")
     def get(self, category):
         try:
