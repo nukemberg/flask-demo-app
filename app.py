@@ -211,6 +211,8 @@ api.add_resource(InsultLikeController, "/insult/<string:insult_id>/like")
 def index():
     return redirect("/api/spec.html")
 
+# make wsgi happy
+application = app
 
 if __name__ == '__main__':
     app.run(debug=True)
