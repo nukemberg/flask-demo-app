@@ -3,7 +3,7 @@
 from flask import Flask, abort, g, request,\
     json, redirect, appcontext_pushed
 from flask.ext import restful
-from flask.ext.restful import marshal_with, marshal, fields
+from flask.ext.restful import marshal_with, marshal
 from flask_restful_swagger import swagger
 import riemann
 import couchdb
@@ -37,22 +37,27 @@ api = swagger.docs(restful.Api(app),
 # couchdb setup
 couchdb_manager = CouchDBManager(auto_sync=False)
 couchdb_manager.setup(app)
-couchdb_manager.add_document(Insult)
-couchdb_manager.add_document(LogEntry)
-couchdb_manager.add_viewdef(log_entries)
-couchdb_manager.add_viewdef(category_scores)
-# install a hook so we have a chance to put update function into the design document
-couchdb_manager.update_design_doc = update_design_doc
-couchdb_manager.sync(app)
+
+
+@appcontext_pushed.connect_via(app)
+def init(_app):
+    couchdb_manager.add_document(Insult)
+    couchdb_manager.add_document(LogEntry)
+    couchdb_manager.add_viewdef(log_entries)
+    couchdb_manager.add_viewdef(category_scores)
+    # install a hook so we have a chance to put update function into the design document
+    couchdb_manager.update_design_doc = update_design_doc
+    couchdb_manager.sync(_app)
+
 
 riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
 statsd_client = metrics.statsd_client(app.config['STATSD_ADDRESS'])
 
 app.wsgi_app = riemann.wsgi_middelware(app.wsgi_app, riemann_client)
-
+#app.before_first_request(init)
 
 # get a timer decorator with riemann client pre-injected
-timed = partial(metrics.TimerDecorator, [riemann_client, statsd_client.timing])
+timed = partial(metrics.TimerDecorator, [riemann_client.riemann_timer_reporter, statsd_client.timing])
 
 
 @appcontext_pushed.connect_via(app)
@@ -61,7 +66,7 @@ def _connect_riemann(_app, **kwargs):
         if not riemann_client.connection:
             riemann_client.connect()
     except Exception:
-        _app.warning("Failed to connect to riemann", exc_info=True)
+        _app.logger.warning("Failed to connect to riemann", exc_info=True)
 
 
 @app.after_request

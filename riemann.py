@@ -1,5 +1,8 @@
 import socket
 from bernhard import Client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TaggedClient(Client):
@@ -13,7 +16,10 @@ class TaggedClient(Client):
         event['host'] = self._local_hostname
         event['tags'] = event.get('tags', []) + self._tags
         event['service'] = self._service_prefix + " " + event['service']
-        return super(TaggedClient, self).send(event)
+        try:
+            return super(TaggedClient, self).send(event)
+        except Exception:
+            logger.error('Failed to send event to Riemann', exc_info=True)
 
     def riemann_timer_reporter(self, service, metric):
         self.send(dict(service=service, metric=metric, tags=['timer']))

@@ -4,6 +4,10 @@ import logging
 import statsd
 
 
+def _name(obj):
+    return getattr(obj, '__name__', obj.__class__.__name__)
+
+
 def TimerDecorator(metric_reporters, name):
     def decorator(func):
         @wraps(func)
@@ -15,7 +19,7 @@ def TimerDecorator(metric_reporters, name):
                 try:
                     metric_reporter(name, delta)
                 except Exception:
-                    logging.error("error while sending to %s", metric_reporter.__name__, exc_info=True)
+                    logging.error("error while sending to %s", _name(metric_reporter), exc_info=True)
             return res
         return wrapper
     return decorator
