@@ -79,6 +79,7 @@ def log_request(response):
     log_entry.store()
     return response
 
+
 def retry(catch, attempts, on_failure):
     "A decorator that will retry an operation `attempts` times and will call `on_failure` if retries exhausted"
     def decorator(func):
@@ -221,12 +222,23 @@ class InsultRandomController(restful.Resource):
             docs = Insult.by_ordered_id(startkey=rand_id, limit=1, descending=True, include_docs=True)
         return docs.rows[0].doc
 
+
+class HealthCheckController(restful.Resource):
+    @swagger.operation(
+        notes="Simple health check"
+    )
+    @timed("health")
+    def get(self):
+        return {"status": "ok"}
+
+
 api.add_resource(InsultRandomController, "/insult/_random")
 api.add_resource(InsultController, "/insult/<string:insult_id>")
 api.add_resource(InsultsController, "/insult", "/insult/")
 api.add_resource(InsultCategoryController, "/category/<string:category>")
 api.add_resource(CategoriesController, "/category", "/category/")
 api.add_resource(InsultLikeController, "/insult/<string:insult_id>/like")
+api.add_resource(HealthCheckController, "/health")
 
 
 @app.route("/")
