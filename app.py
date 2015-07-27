@@ -39,7 +39,6 @@ couchdb_manager = CouchDBManager(auto_sync=False)
 couchdb_manager.setup(app)
 
 
-@appcontext_pushed.connect_via(app)
 def init(_app):
     couchdb_manager.add_document(Insult)
     couchdb_manager.add_document(LogEntry)
@@ -53,6 +52,7 @@ def init(_app):
 riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
 statsd_client = metrics.statsd_client(app.config['STATSD_ADDRESS'])
 
+app.before_first_request(init)
 app.wsgi_app = riemann.wsgi_middelware(app.wsgi_app, riemann_client)
 #app.before_first_request(init)
 
