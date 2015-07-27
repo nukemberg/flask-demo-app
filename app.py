@@ -16,6 +16,7 @@ from datetime import datetime
 import hashlib
 from functools import partial
 import metrics
+import logging
 
 __version__ = "0.0.1"
 
@@ -39,6 +40,21 @@ couchdb_manager = CouchDBManager(auto_sync=False)
 couchdb_manager.setup(app)
 
 
+
+riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
+statsd_client = metrics.statsd_client(app.config['STATSD_ADDRESS'])
+
+app.wsgi_app = riemann.wsgi_middelware(
+    metrics.wsgi_middelware(app.wsgi_app, statsd_client),
+    riemann_client
+)
+#app.before_first_request(init)
+
+# get a timer decorator with riemann client pre-injected
+timed = partial(metrics.TimerDecorator, [riemann_client.riemann_timer_reporter, statsd_client.timing])
+
+
+@app.before_first_request
 def init(_app):
     couchdb_manager.add_document(Insult)
     couchdb_manager.add_document(LogEntry)
@@ -47,17 +63,9 @@ def init(_app):
     # install a hook so we have a chance to put update function into the design document
     couchdb_manager.update_design_doc = update_design_doc
     couchdb_manager.sync(_app)
-
-
-riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
-statsd_client = metrics.statsd_client(app.config['STATSD_ADDRESS'])
-
-app.before_first_request(init)
-app.wsgi_app = riemann.wsgi_middelware(app.wsgi_app, riemann_client)
-#app.before_first_request(init)
-
-# get a timer decorator with riemann client pre-injected
-timed = partial(metrics.TimerDecorator, [riemann_client.riemann_timer_reporter, statsd_client.timing])
+    if not _app.debug:
+        app.logger.addHandler(logging.StreamHandler())
+        app.logger.setLevel(logging.INFO)
 
 
 @appcontext_pushed.connect_via(app)

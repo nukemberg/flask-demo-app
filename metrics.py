@@ -40,3 +40,15 @@ def statsd_client(addr):
     host, s_port = addr.split(":")
     port = int(s_port)
     return StatsClient(host, port, prefix='insult')
+
+
+def statsd_wsgi_middelware(next_middleware, statsd_client):
+    def call(environ, start_response):
+        try:
+            iterable = next_middleware(environ, start_response)
+            for data in iterable:
+                yield data
+        except Exception:
+            statsd_client.incr("exception")
+            raise
+    return call
