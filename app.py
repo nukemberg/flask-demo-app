@@ -189,6 +189,7 @@ class CategoriesController(restful.Resource):
     @swagger.operation(
         notes="List all the categories by their \"like\" score"
     )
+    @timed("list categories")
     def get(self):
         d = {row.key: row.value for row in category_scores(group=True)}
         return sorted(d, key=d.get) # return sorted list by score
@@ -199,6 +200,7 @@ class InsultLikeController(restful.Resource):
     @swagger.operation(
         notes="Submit a like for an insult"
     )
+    @timed("like")
     def put(self, insult_id):
         riemann_client.send({"service": "like", "metric": 1, "tags": ["counter"]})
         _, resp_body = g.couch.update_doc("insults/increment_score", insult_id)
