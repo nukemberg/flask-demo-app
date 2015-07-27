@@ -39,13 +39,11 @@ api = swagger.docs(restful.Api(app),
 couchdb_manager = CouchDBManager(auto_sync=False)
 couchdb_manager.setup(app)
 
-
-
 riemann_client = riemann.get_client(app.config['RIEMANN_ADDRESS'], tags=[__version__])
 statsd_client = metrics.statsd_client(app.config['STATSD_ADDRESS'])
 
 app.wsgi_app = riemann.wsgi_middelware(
-    metrics.wsgi_middelware(app.wsgi_app, statsd_client),
+    metrics.statsd_wsgi_middelware(app.wsgi_app, statsd_client),
     riemann_client
 )
 #app.before_first_request(init)
@@ -109,7 +107,8 @@ class InsultController(restful.Resource):
     @marshal_with(Insult.resource_fields)
     def get(self, insult_id):
         doc = Insult.load(insult_id)
-        if doc is None: abort(404)
+        if doc is None:
+            abort(404)
         return (doc, 200, {"etag": doc.rev, "x-sha": hashlib.sha256(json.dumps(doc.as_dict())).hexdigest()})
 
     @swagger.operation(
@@ -181,7 +180,7 @@ class InsultsController(restful.Resource):
     @swagger.operation(
         notes="List insults",
         responseClass=Insults.__name__
-        )
+    )
     def get(self):
         try:
             page = paginate(Insult.score_view(include_docs=True), 50, request.args.get('start', None))
@@ -200,7 +199,7 @@ class CategoriesController(restful.Resource):
     @timed("list categories")
     def get(self):
         d = {row.key: row.value for row in category_scores(group=True)}
-        return sorted(d, key=d.get) # return sorted list by score
+        return sorted(d, key=d.get)  # return sorted list by score
 
 
 class InsultLikeController(restful.Resource):
