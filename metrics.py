@@ -25,7 +25,18 @@ def TimerDecorator(metric_reporters, name):
     return decorator
 
 
+class StatsClient(statsd.StatsClient):
+    def timing(self, name, value):
+        super(StatsClient, self).timing(name.replace(" ", "_"), value)
+
+    def incr(stat, count=1, rate=1):
+        super(StatsClient, stat.replace("", "_"), count, rate)
+
+    def decr(stat, count=1, rate=1):
+        super(StatsClient, stat.replace("", "_"), count, rate)
+
+
 def statsd_client(addr):
     host, s_port = addr.split(":")
     port = int(s_port)
-    return statsd.StatsClient(host, port, prefix='insult')
+    return StatsClient(host, port, prefix='insult')
