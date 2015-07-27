@@ -51,19 +51,20 @@ app.wsgi_app = riemann.wsgi_middelware(
 # get a timer decorator with riemann client pre-injected
 timed = partial(metrics.TimerDecorator, [riemann_client.riemann_timer_reporter, statsd_client.timing])
 
+if not app.debug:
+    app.logger.addHandler(logging.StreamHandler())
+    app.logger.setLevel(logging.INFO)
+
 
 @app.before_first_request
-def init(_app):
+def init():
     couchdb_manager.add_document(Insult)
     couchdb_manager.add_document(LogEntry)
     couchdb_manager.add_viewdef(log_entries)
     couchdb_manager.add_viewdef(category_scores)
     # install a hook so we have a chance to put update function into the design document
     couchdb_manager.update_design_doc = update_design_doc
-    couchdb_manager.sync(_app)
-    if not _app.debug:
-        app.logger.addHandler(logging.StreamHandler())
-        app.logger.setLevel(logging.INFO)
+    couchdb_manager.sync(app)
 
 
 @appcontext_pushed.connect_via(app)
