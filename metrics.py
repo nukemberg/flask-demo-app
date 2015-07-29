@@ -17,7 +17,11 @@ def TimerDecorator(metric_reporters, name):
             delta = time.time() - start
             for metric_reporter in metric_reporters:
                 try:
-                    metric_reporter(name, delta)
+                    if getattr(metric_reporter, '_units', 's') == 'ms':
+                        _delta = delta * 1000
+                    else:
+                        _delta = delta  
+                    metric_reporter(name, _delta)
                 except Exception:
                     logging.error("error while sending to %s", _name(metric_reporter), exc_info=True)
             return res
@@ -35,6 +39,7 @@ class StatsClient(statsd.StatsClient):
     def decr(stat, count=1, rate=1):
         super(StatsClient, stat.replace("", "_"), count, rate)
 
+StatsClient.timing._units = 'ms'
 
 def statsd_client(addr):
     host, s_port = addr.split(":")
