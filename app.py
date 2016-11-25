@@ -106,6 +106,7 @@ def retry(catch, attempts, on_failure):
 class InsultController(flask_restful.Resource):
     @swagger.operation(notes="Retrieve a specific insult by ID", responseClass=Insult.__name__)
     @marshal_with(Insult.resource_fields)
+    @timed("get insult")
     def get(self, insult_id):
         doc = Insult.load(insult_id)
         if doc is None:
@@ -119,6 +120,7 @@ class InsultController(flask_restful.Resource):
             {"name": "body", "description": "Updated insult document", "paramType": "body", "required": True, "dataType": Insult.__name__}
         ])
     @marshal_with(Insult.resource_fields)
+    @timed("update insult")
     def put(self, insult_id):
         def _failed():
             flask_restful.abort(409, {"status": "document conflict", "id": insult_id})
@@ -136,6 +138,7 @@ class InsultController(flask_restful.Resource):
 
         return _update_doc(doc)
 
+    @timed("delete insult")
     def delete(self, insult_id):
         try:
             del g.couch[insult_id]
