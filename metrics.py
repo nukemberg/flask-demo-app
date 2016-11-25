@@ -10,20 +10,25 @@ def _name(obj):
 
 def TimerDecorator(metric_reporters, name):
     def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.time()
-            res = func(*args, **kwargs)
-            delta = time.time() - start
+        def _report(m, value):
             for metric_reporter in metric_reporters:
                 try:
                     if getattr(metric_reporter, '_units', 's') == 'ms':
-                        _delta = delta * 1000
-                    else:
-                        _delta = delta
-                    metric_reporter(name, _delta)
+                        value = value * 1000
+                    metric_reporter(m, value)
                 except Exception:
                     logging.error("error while sending to %s", _name(metric_reporter), exc_info=True)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            try:
+                res = func(*args, **kwargs)
+            except Exception:
+                _report(name + '.error', time.time() - start)
+                raise
+            _report(name + '.success', time.time() - start)
+
             return res
         return wrapper
     return decorator
