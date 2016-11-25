@@ -152,13 +152,15 @@ class InsultCategoryController(flask_restful.Resource):
     @swagger.operation(
         notes="List all the insult in the category",
         parameters=[
-            {"name": "category", "paramType": "path", "required": True, "dataType": "string", "description": "Insults category ID"}
+            {"name": "category", "paramType": "path", "required": True, "dataType": "string", "description": "Insults category ID"},
+            {"name": "start", "paramType": "query", "required": False, "dataType": "string", "description": "Paging token"},
+            {"name": "limit", "paramType": "query", "dataType": "integer", "description": "Maximum number of results"}
         ]
     )
     @timed("list category items")
     def get(self, category):
         try:
-            pagination = paginate(Insult.by_category(key=category, include_docs=True, reduce=False), 50, request.args.get('start', None))
+            pagination = paginate(Insult.by_category(key=category, include_docs=True, reduce=False), request.args.get('limit', 50), request.args.get('start', None))
         except TypeError:
             app.logger.error("Error while paginating category items", exc_info=True)
             abort(400)
