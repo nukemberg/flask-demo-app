@@ -3,7 +3,9 @@
 import json
 import requests
 from argparse import ArgumentParser
-import urlparse, sys
+import urlparse
+import sys
+
 
 def chunks(iterator, n):
     return (iterator[pos:pos + n] for pos in xrange(0, len(iterator), n))

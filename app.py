@@ -2,8 +2,8 @@
 
 from flask import Flask, abort, g, request,\
     json, redirect, appcontext_pushed
-from flask.ext import restful
-from flask.ext.restful import marshal_with, marshal
+import flask_restful
+from flask_restful import marshal_with, marshal
 from flask_restful_swagger import swagger
 import riemann
 import couchdb
@@ -31,7 +31,7 @@ app.config.update(dict(
 ))
 app.config.from_envvar('APP_CONFIG_FILE', silent=True)
 
-api = swagger.docs(restful.Api(app),
+api = swagger.docs(flask_restful.Api(app),
                    apiVersion="1.0.0",
                    basePath=app.config['BASE_URL'])
 
@@ -103,7 +103,7 @@ def retry(catch, attempts, on_failure):
     return decorator
 
 
-class InsultController(restful.Resource):
+class InsultController(flask_restful.Resource):
     @swagger.operation(notes="Retrieve a specific insult by ID", responseClass=Insult.__name__)
     @marshal_with(Insult.resource_fields)
     def get(self, insult_id):
@@ -121,9 +121,9 @@ class InsultController(restful.Resource):
     @marshal_with(Insult.resource_fields)
     def put(self, insult_id):
         def _failed():
-            restful.abort(409, {"status": "document conflict", "id": insult_id})
+            flask_restful.abort(409, {"status": "document conflict", "id": insult_id})
 
-        #Updates the insult with a retry. Will attempt 3 times before failing.
+        # Updates the insult with a retry. Will attempt 3 times before failing.
         @retry(catch=couchdb.http.ResourceConflict, attempts=3, on_failure=_failed)
         def _update_doc(doc):
             doc.update(request.get_json())
@@ -132,7 +132,7 @@ class InsultController(restful.Resource):
 
         doc = Insult.load(insult_id)
         if doc is None:
-            restful.abort(404, status="Not found")
+            flask_restful.abort(404, status="Not found")
 
         return _update_doc(doc)
 
@@ -141,10 +141,10 @@ class InsultController(restful.Resource):
             del g.couch[insult_id]
             return (True, 201, {})
         except couchdb.http.ResourceNotFound:
-            restful.abort(404, status="Not found")
+            flask_restful.abort(404, status="Not found")
 
 
-class InsultCategoryController(restful.Resource):
+class InsultCategoryController(flask_restful.Resource):
     "Returns all the insults in the category with the given ID"
     @swagger.operation(
         notes="List all the insult in the category",
@@ -163,7 +163,7 @@ class InsultCategoryController(restful.Resource):
                 "insults": marshal([row.doc for row in pagination.items], Insult.resource_fields)}
 
 
-class InsultsController(restful.Resource):
+class InsultsController(flask_restful.Resource):
     @swagger.operation(
         notes="Submit a new insult",
         responseClass=IdOnlyModel.__name__,
@@ -192,7 +192,7 @@ class InsultsController(restful.Resource):
                 "insults": marshal([row.doc for row in page.items], Insult.resource_fields)}
 
 
-class CategoriesController(restful.Resource):
+class CategoriesController(flask_restful.Resource):
     "Lists all the categories by their like score."
     @swagger.operation(
         notes="List all the categories by their \"like\" score"
@@ -203,7 +203,7 @@ class CategoriesController(restful.Resource):
         return sorted(d, key=d.get)  # return sorted list by score
 
 
-class InsultLikeController(restful.Resource):
+class InsultLikeController(flask_restful.Resource):
     "increment the score of a insult with a given ID"
     @swagger.operation(
         notes="Submit a like for an insult"
@@ -216,7 +216,7 @@ class InsultLikeController(restful.Resource):
         return json.load(resp_body)
 
 
-class InsultRandomController(restful.Resource):
+class InsultRandomController(flask_restful.Resource):
     @swagger.operation(
         notes="Get a random insult",
         responseClass=Insult.__name__,
@@ -233,7 +233,7 @@ class InsultRandomController(restful.Resource):
         return docs.rows[0].doc
 
 
-class HealthCheckController(restful.Resource):
+class HealthCheckController(flask_restful.Resource):
     @swagger.operation(
         notes="Simple health check"
     )

@@ -20,7 +20,7 @@ def TimerDecorator(metric_reporters, name):
                     if getattr(metric_reporter, '_units', 's') == 'ms':
                         _delta = delta * 1000
                     else:
-                        _delta = delta  
+                        _delta = delta
                     metric_reporter(name, _delta)
                 except Exception:
                     logging.error("error while sending to %s", _name(metric_reporter), exc_info=True)
