@@ -1,7 +1,7 @@
 FROM ubuntu:zesty
 
 RUN apt-get update && apt-get install -y python-minimal python-pip
-ADD *.py db requirements.txt siege.urls /opt/app/
+ADD *.py db requirements.txt /opt/app/
 RUN pip install -r /opt/app/requirements.txt
 
 EXPOSE 8000/tcp
