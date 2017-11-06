@@ -1,0 +1,6 @@
+.vagrant
+__pycache__
+.sass-cache
+chef
+Berksfile*
+Vagrantfile
