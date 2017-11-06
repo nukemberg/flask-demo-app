@@ -6,3 +6,4 @@ Flask-couchdb
 blinker
 requests
 statsd
+gunicorn
